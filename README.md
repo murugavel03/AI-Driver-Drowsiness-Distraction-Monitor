@@ -1,50 +1,63 @@
-# 🎭 Real-Time Face Mask Detection System
+# 🚗 AI Driver Drowsiness & Distraction Monitor
 
-A **Computer Vision** project that detects whether people are wearing face masks in real-time using a webcam, video file, or static image. Built with **Python**, **OpenCV**, and **Transfer Learning (MobileNetV2)**.
+> **Real-time Computer Vision system** that monitors driver alertness using **MediaPipe Face Mesh** (468 3D landmarks), detecting drowsiness, yawning, and head pose deviation — with multi-level audio alerts and session analytics.
 
 ---
 
 ## 📌 Project Overview
 
-| Attribute      | Details                                      |
-|---------------|----------------------------------------------|
-| **Domain**     | Computer Vision / Deep Learning              |
-| **Language**   | Python 3.8+                                  |
-| **Framework**  | TensorFlow / Keras + OpenCV                  |
-| **Model**      | MobileNetV2 (Transfer Learning)              |
-| **Task**       | Binary Classification: Mask / No Mask        |
-| **Dataset**    | ~1,376 images (with_mask + without_mask)     |
-| **Accuracy**   | ~98% on validation set                       |
+| Attribute       | Details                                               |
+|----------------|-------------------------------------------------------|
+| **Domain**      | Computer Vision / Real-Time Systems                   |
+| **Language**    | Python 3.8+                                           |
+| **CV Library**  | MediaPipe (Google) + OpenCV 4.8                       |
+| **Detection**   | Eye Aspect Ratio, Mouth Aspect Ratio, Head Pose (PnP) |
+| **Alert System**| Multi-level audio alerts (pygame)                     |
+| **Logging**     | Per-frame CSV logging → post-session analytics        |
+| **No Training** | Uses pre-trained MediaPipe Face Mesh (instant setup)  |
+
+---
+
+## 🧠 What It Detects
+
+| Event | Method | Threshold |
+|-------|--------|-----------|
+| 👁️ Eye closing / Drowsiness | Eye Aspect Ratio (EAR) | EAR < 0.25 for 0.5s |
+| 😴 Microsleep | Consecutive low-EAR frames | > 2 seconds |
+| 😮 Yawning | Mouth Aspect Ratio (MAR) | MAR > 0.65 |
+| 🔄 Head nodding down | Head pitch angle | > 20° |
+| ↔️ Distracted (looking away) | Head yaw angle | > 35° |
+
+### Alert Levels
+```
+Level 1 — CAUTION  : Eyes beginning to close (yellow)
+Level 2 — WARNING  : Sustained drowsiness (orange)
+Level 3 — DANGER   : Microsleep detected — emergency (red)
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-face-mask-detector/
-├── README.md                          # This file
-├── requirements.txt                   # Python dependencies
+driver-drowsiness-monitor/
+├── README.md                       # This file
+├── requirements.txt                # Python dependencies
 │
-├── download_dataset.py                # Step 1: Download dataset & face detector
-├── train_mask_detector.py             # Step 2: Train the MobileNetV2 model
-├── evaluate.py                        # Step 3: Evaluate model performance
-├── detect_mask_video.py               # Step 4a: Real-time webcam/video detection
-├── detect_from_image.py               # Step 4b: Static image detection
+├── monitor.py                      # 🔑 Main real-time detection (run this)
+├── analyze_session.py              # Post-session analytics & charts
+├── demo_simulate.py                # Demo without webcam (generates fake data)
 │
-├── dataset/
-│   ├── with_mask/                     # Training images (masked faces)
-│   └── without_mask/                  # Training images (unmasked faces)
+├── utils/
+│   ├── __init__.py
+│   ├── face_metrics.py             # EAR, MAR, head pose computations
+│   ├── alert_system.py             # Multi-level audio alert manager
+│   ├── session_logger.py           # CSV session logging
+│   └── visualize_landmarks.py      # MediaPipe landmark explorer
 │
-├── face_detector/
-│   ├── deploy.prototxt                # OpenCV DNN face detector config
-│   └── res10_300x300_ssd_iter_140000.caffemodel  # Face detector weights
-│
-├── models/
-│   └── mask_detector.model            # Saved Keras model (generated after training)
-│
-└── plots/
-    ├── mask_training_plot.png         # Training accuracy/loss curves
-    └── confusion_matrix.png           # Evaluation confusion matrix
+├── logs/                           # Auto-created: session CSV logs
+├── plots/                          # Auto-created: analysis charts
+└── screenshots/                    # Auto-created: saved frames
 ```
 
 ---
@@ -52,28 +65,26 @@ face-mask-detector/
 ## ⚙️ Environment Setup
 
 ### Prerequisites
-- Python **3.8 or higher**
-- pip (Python package manager)
-- A webcam (for real-time detection)
-- Internet connection (for downloading dataset and pretrained weights)
+- Python **3.8–3.11** (MediaPipe requires ≤ 3.11)
+- Webcam (or a video file for testing)
+- ~500 MB disk space
 
 ### Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/<your-username>/face-mask-detector.git
-cd face-mask-detector
+git clone https://github.com/<your-username>/driver-drowsiness-monitor.git
+cd driver-drowsiness-monitor
 ```
 
-### Step 2 — Create a Virtual Environment (Recommended)
+### Step 2 — Create Virtual Environment
 
 ```bash
-# Create virtual environment
 python -m venv venv
 
-# Activate on Windows
+# Windows
 venv\Scripts\activate
 
-# Activate on macOS/Linux
+# macOS / Linux
 source venv/bin/activate
 ```
 
@@ -83,157 +94,178 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> ⚠️ If you encounter issues with TensorFlow on older hardware, use:
-> `pip install tensorflow-cpu`
+> ⚠️ If MediaPipe fails to install, ensure Python ≤ 3.11:
+> ```bash
+> python --version  # must be 3.8 – 3.11
+> ```
 
 ---
 
 ## 🚀 Running the Project
 
-### Step 4 — Download Dataset and Face Detector
+### ▶️ Option A: Real-Time Webcam Monitor
 
 ```bash
-python download_dataset.py
+python monitor.py
 ```
 
-This will:
-- Download the **face mask image dataset** (~45 MB)
-- Download the **OpenCV DNN face detector** (ResNet10 SSD Caffe model)
-- Organize images into `dataset/with_mask/` and `dataset/without_mask/`
-
-### Step 5 — Train the Model
+### ▶️ Option B: With a Video File
 
 ```bash
-python train_mask_detector.py
+python monitor.py --source path/to/driving_video.mp4
 ```
 
-**Optional arguments:**
-```bash
-python train_mask_detector.py --epochs 20 --dataset dataset --model models/mask_detector.model
-```
-
-This will:
-- Load and preprocess images
-- Apply data augmentation
-- Fine-tune **MobileNetV2** on your dataset
-- Save trained model to `models/mask_detector.model`
-- Save training plot to `plots/mask_training_plot.png`
-
-> Expected training time: ~5–15 minutes on CPU, ~2–3 minutes on GPU.
-
-### Step 6 — Evaluate the Model
+### ▶️ Option C: Auto-Calibrate EAR Threshold First
 
 ```bash
-python evaluate.py
+python monitor.py --calibrate
 ```
+Stare at the camera for 3 seconds; it auto-sets your personal EAR threshold.
 
-Outputs:
-- Accuracy, Precision, Recall, F1-Score
-- Per-class Classification Report
-- Confusion matrix saved to `plots/confusion_matrix.png`
-
-### Step 7a — Real-Time Detection (Webcam)
+### ▶️ Option D: Custom Thresholds
 
 ```bash
-python detect_mask_video.py
+python monitor.py --ear 0.22 --mar 0.70
 ```
 
-Press **`q`** to quit.
-
-**Use a video file instead:**
-```bash
-python detect_mask_video.py --input path/to/video.mp4
-```
-
-**Save output video:**
-```bash
-python detect_mask_video.py --output output.avi
-```
-
-### Step 7b — Static Image Detection
+### ▶️ Option E: Disable Session Logging
 
 ```bash
-python detect_from_image.py --image path/to/image.jpg
+python monitor.py --no-log
 ```
 
-**Save annotated result:**
-```bash
-python detect_from_image.py --image path/to/image.jpg --output result.jpg
+### All CLI Arguments
+
 ```
+--source     Video source: 0 (webcam), 1, or video file path  [default: 0]
+--ear        EAR drowsiness threshold                         [default: 0.25]
+--mar        MAR yawn threshold                               [default: 0.65]
+--calibrate  Auto-calibrate EAR from live camera
+--no-log     Disable CSV session logging
+```
+
+### Keyboard Shortcuts (while running)
+
+| Key | Action |
+|-----|--------|
+| `q` | Quit monitor |
+| `s` | Save screenshot |
+| `r` | Reset session counters |
+| `c` | Toggle landmark mesh overlay |
 
 ---
 
-## 🧠 How It Works
+## 📊 Post-Session Analysis
+
+After running the monitor, analyze the session log:
+
+```bash
+# Analyze the most recent session
+python analyze_session.py
+
+# Analyze a specific log
+python analyze_session.py --log logs/session_20260912_103045.csv
+
+# Analyze all sessions
+python analyze_session.py --all
+```
+
+Generates a report in `plots/` with:
+- 📈 EAR over time with blink events
+- 📈 MAR over time with yawn events  
+- 📈 Head pose angles (pitch, yaw, roll)
+- 🥧 Status distribution pie chart
+- 📊 Alert level timeline
+- 📋 Summary statistics
+
+---
+
+## 🎮 Demo Without Webcam
+
+No webcam? Generate synthetic data and run the full pipeline:
+
+```bash
+# Generate 2-minute simulated session + run analysis
+python demo_simulate.py --duration 120 --plot
+```
+
+This creates `logs/session_demo.csv` and saves a chart in `plots/`.
+
+---
+
+## 🔬 How It Works
 
 ```
-Input Frame
+Webcam Frame (30 FPS)
+        │
+        ▼
+  ┌─────────────────────────┐
+  │  MediaPipe Face Mesh    │  ← Google's pre-trained model
+  │  468 3D facial landmarks│     (runs on CPU, no GPU needed)
+  └─────────┬───────────────┘
+            │
+     ┌──────┴──────┐
+     │             │
+     ▼             ▼
+  EAR / MAR    Head Pose (solvePnP)
+  (eye/mouth   (pitch, yaw, roll
+  geometry)     from 6 landmarks)
+     │             │
+     └──────┬──────┘
+            │
+       State Machine
+       (ALERT → CAUTION → WARNING → DANGER)
+            │
+    ┌───────┴──────────┐
+    │                  │
+   HUD              Audio Alert
+  Overlay          (pygame beep)
     │
-    ▼
-OpenCV DNN Face Detector (ResNet10 SSD)
-    │  Detects face bounding boxes
-    ▼
-Extract Face ROIs
-    │  Crop + resize to 224×224
-    ▼
-MobileNetV2 Classifier (Fine-Tuned)
-    │  Predicts: [Mask, No Mask]
-    ▼
-Annotated Output
-    │  Bounding box + label + confidence
-    ▼
-Display / Save
+  CSV Logger
+  (per-frame metrics)
 ```
 
-### Model Architecture
+### Eye Aspect Ratio (EAR) Formula
 
-1. **Face Detection**: OpenCV DNN with pre-trained ResNet10 SSD (Caffe) — fast, accurate, CPU-friendly
-2. **Classification Head**: MobileNetV2 backbone (ImageNet weights, frozen) + custom head:
-   - `AveragePooling2D(7×7)`
-   - `Dense(128, relu)`
-   - `Dropout(0.5)`
-   - `Dense(2, softmax)`
+```
+EAR = (||p2-p6|| + ||p3-p5||) / (2 × ||p1-p4||)
 
----
+p1 ─── p2 ─── p3
+│               │
+p6 ─── p5 ─── p4
 
-## 📊 Performance
-
-| Metric     | Value   |
-|-----------|---------|
-| Accuracy   | ~98%    |
-| Precision  | ~98%    |
-| Recall     | ~98%    |
-| F1-Score   | ~98%    |
-
-*(Results on 20% held-out test split)*
+Open eye  → EAR ≈ 0.30
+Closed eye → EAR ≈ 0.05
+```
 
 ---
 
 ## 🛠️ Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| `No module named 'cv2'` | Run `pip install opencv-python` |
-| `No module named 'imutils'` | Run `pip install imutils` |
-| Webcam not detected | Try `--input 0` or `--input 1` |
-| Low accuracy | Increase `--epochs` to 30–40 |
-| Out of memory | Reduce batch size in `train_mask_detector.py` (line `BATCH_SIZE = 16`) |
-| Face not detected | Lower confidence: `--confidence 0.3` |
+| Problem | Solution |
+|---------|---------|
+| `ModuleNotFoundError: mediapipe` | `pip install mediapipe` |
+| `No module named 'cv2'` | `pip install opencv-python` |
+| Webcam not found | Try `--source 1` or `--source 2` |
+| No audio alerts | `pip install pygame` |
+| Low detection accuracy | Use `--calibrate` flag |
+| MediaPipe install fails | Use Python 3.10: `py -3.10 -m venv venv` |
 
 ---
 
-## 📚 References
+## 📚 References & Papers
 
-- [MobileNetV2 — Howard et al., 2018](https://arxiv.org/abs/1801.04381)
-- [OpenCV DNN Face Detector](https://github.com/opencv/opencv/tree/master/samples/dnn)
-- [Face Mask Dataset — Prajna Bhandary](https://github.com/prajnasb/observations)
-- [TensorFlow / Keras Documentation](https://www.tensorflow.org/api_docs)
+- **MediaPipe Face Mesh** — Kartynnik et al., *Real-time Facial Surface Geometry from Monocular Video on Mobile GPUs*, CVPR 2019
+- **EAR for Drowsiness** — Soukupová & Čech, *Real-Time Eye Blink Detection using Facial Landmarks*, CVWW 2016
+- **Head Pose via solvePnP** — OpenCV documentation
+- **MAR for Yawning** — Abtahi et al., *YAWNet: Detecting Yawning and Pose in the Wild*, 2014
 
 ---
 
 ## 📄 License
 
-This project is open-source and available under the [MIT License](LICENSE).
+MIT License — see [LICENSE](LICENSE)
 
 ---
 
-*Developed as part of the Computer Vision course project submission.*
+*Developed as a Computer Vision course project — AI Driver Safety Monitor using MediaPipe + OpenCV.*
